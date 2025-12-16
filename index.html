@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minijuego de Preguntas Interactivo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fugaz+One&display=swap" rel="stylesheet">
+
+    <style>
+        /* Estilos generales */
+        body {
+            font-family: sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        /* Contenedor principal con diseño de libro */
+        .book-container {
+            display: flex;
+            width: 90%;
+            max-width: 1200px;
+            min-height: 80vh; /* background-color movido al body o a las páginas si es necesario */
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            border-radius: 10px;
+            position: relative; /* Necesario para el pseudoelemento */
+            z-index: 1; /* Asegura que el contenido esté por encima del fondo */
+        }
+
+        /* Pseudoelemento para la imagen de fondo con opacidad */
+        .book-container::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url(https://portalemcali.onrender.com/img/Navbar/Logo.png);
+            background-repeat: no-repeat;
+            background-size: contain; /* Ajusta la imagen para que quepa completamente */
+            opacity: 0.14;
+            z-index: -1; /* Coloca el fondo detrás del contenido */
+        }
+
+        /* Estilo para ambas páginas */
+        .page {
+            width: 50%;
+            padding: 40px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Clase para ocultar elementos */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Línea divisoria para simular el centro del libro */
+        .left-page {
+            border-right: 1px solid #ddd;
+        }
+
+        .question-content {
+            flex-grow: 1; /* Ocupa el espacio disponible */
+        }
+
+        #question-title {
+            color: #000;
+            border-bottom: 2px solid #007BFF;
+            padding-bottom: 10px;
+        }
+
+        #question-text {
+            font-size: 1.2em;
+            line-height: 1.6;
+            color: #222222;
+        }
+
+        /* Sección de calificación */
+        .answer-section {
+            margin: 20px 0;
+        }
+
+        /* --- NUEVA BARRA DE CALIFICACIÓN --- */
+        .rating-bar-container {
+            position: relative;
+            display: flex;
+            width: 100%;
+            height: 40px;
+            background-color: #e9ecef;
+            border-radius: 20px;
+            cursor: pointer;
+            overflow: hidden; /* Para que el relleno no se salga de los bordes redondeados */
+            border: 1px solid #777777; /* Borde añadido */
+        }
+
+        .rating-bar-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 0; /* Inicia en 0, se modifica con JS */
+            border-radius: 20px;
+            transition: width 0.4s ease-in-out; /* La animación de llenado */
+            z-index: 1;
+            box-sizing: border-box; /* Para que el borde no añada tamaño */
+        }
+
+        /* --- NUEVOS COLORES PARA LA BARRA --- */
+        .color-1 { background-color: #cdff1a; } /* Amarillo Pálido */
+        .color-2 { background-color: #ffe600; } /* Amarillo */
+        .color-3 { background-color: #ff9900; } /* Ámbar */
+        .color-4 { background-color: #ff5e00; } /* Naranja Intenso */
+        .color-5 { background-color: #ff0000; } /* Rojo */
+        /* --- FIN DE NUEVOS COLORES --- */
+
+
+        .rating-bar-segment {
+            flex: 1; /* Cada segmento ocupa el mismo espacio */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-right: 1px solid #777777;
+            box-sizing: border-box;
+            z-index: 2; /* Por encima del relleno */
+        }
+
+        .rating-bar-segment:last-child {
+            border-right: none;
+        }
+
+        .rating-bar-segment span {
+            color: #000000;
+            font-weight: bold;
+        }
+        
+        /* Cambia el color del número cuando la barra pasa por encima */
+        .rating-bar-container.selected .rating-bar-segment.active span {
+            color: rgb(255, 255, 255);
+                        /* Añade un reborde negro de 1px para contraste */
+            text-shadow:
+                -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, /* Diagonales */
+                -1px 0 0 #000, 1px 0 0 #000, 0 -1px 0 #000, 0 1px 0 #000; /* Horizontales y Verticales */
+            transition: color 0.3s;
+        }
+        /* --- FIN DE LA BARRA DE CALIFICACIÓN --- */
+
+
+        /* Botones de navegación (Anterior/Siguiente) */
+        .navigation-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        #prev-btn, #next-btn {
+            padding: 10px 20px;
+            border: none;
+            background-color: #28a745;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+
+        #prev-btn:disabled, #next-btn:disabled {
+            background-color: #686868;
+            cursor: not-allowed;
+        }
+
+        /* --- NUEVO: ESTILOS PARA EL TOOLTIP (MENSAJE EMERGENTE) --- */
+        .tooltip-wrapper {
+            position: relative;
+            display: inline-block; /* Necesario para que el tooltip se posicione correctamente */
+        }
+
+        .tooltip-wrapper .tooltip-text {
+            visibility: hidden;
+            width: 180px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px;
+            position: absolute;
+            z-index: 10;
+            bottom: 115%; /* Posiciona el tooltip encima del botón */
+            left: 50%;
+            margin-left: -90px; /* Centra el tooltip (la mitad de su ancho) */
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none; /* Evita que el tooltip interfiera con el cursor */
+        }
+
+        /* Muestra el tooltip cuando el wrapper tiene la clase 'show-tooltip' */
+        .tooltip-wrapper.show-tooltip .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        /* --- FIN DE ESTILOS PARA EL TOOLTIP --- */
+
+
+        /* Paginación en la parte inferior */
+        .pagination {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            justify-content: center;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .page-number {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid #ddd;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .page-number:hover {
+            background-color: #f0f0f0;
+        }
+
+        /* Estilo para el número de página actual */
+        .page-number.current {
+            background-color: #007BFF;
+            color: white;
+            border-color: #007BFF;
+        }
+
+        /* --- NUEVO: Estilo para paginación deshabilitada --- */
+        .page-number.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Estilo para la página derecha (explicación) */
+        .right-page {
+            background-color: transparent; /* Hacer transparente para ver el fondo del contenedor */
+            position: relative; /* Necesario para posicionar el texto del pie de página del resumen */
+        }
+
+        #explanation-title {
+            color: #020202;
+            font-size: 1.8em;
+        }
+
+        #explanation-text {
+            font-size: 1.1em;
+            line-height: 1.7;
+            color: #222222;
+        }
+
+        /* --- ESTILOS PARA LA VISTA DE RESUMEN --- */
+        #summary-title {
+            color: #000000;
+            border-bottom: 2px solid #28a745;
+            padding-bottom: 10px;
+        }
+
+        .summary-bar {
+            display: flex;
+            width: 100%;
+            height: 50px;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 30px 0;
+            border: 1px solid #ccc;
+        }
+
+        .summary-segment {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2em;
+            text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+        }
+
+        #restart-btn {
+            padding: 12px 25px;
+            border: none;
+            background-color: #007BFF;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1em;
+            margin-top: 20px;
+            align-self: center; /* Centra el botón */
+        }
+
+        /* --- NUEVO: ESTILO PARA EL TEXTO FINAL DEL RESUMEN --- */
+        #summary-footer-text {
+            position: absolute;
+            bottom: 40px; /* Alineado con el padding de la página */
+            left: 0;
+            width: 100%;
+            padding: 0 40px; /* Para que coincida con el padding de .page */
+            box-sizing: border-box;
+            font-family: "Fugaz One", cursive;
+            font-size: 2em;
+            font-weight: bold;
+            text-align: center;
+            z-index: 10; /* Por encima de otro contenido */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="book-container">
+        <!-- Lado Izquierdo: Preguntas y Navegación -->
+        <div class="page left-page">
+            <!-- Vista de Preguntas -->
+            <div id="question-view">
+                <div class="question-content">
+                    <h2 id="question-title">Pregunta #1</h2>
+                    <p id="question-text">Aquí irá el texto de la pregunta.</p>
+                </div>
+
+                <div class="answer-section">
+                    <p>Califica del 1 al 5:</p>
+                    <div class="rating-bar-container" id="rating-bar">
+                        <div class="rating-bar-fill"></div>
+                        <div class="rating-bar-segment" data-value="1"><span>1</span></div>
+                        <div class="rating-bar-segment" data-value="2"><span>2</span></div>
+                        <div class="rating-bar-segment" data-value="3"><span>3</span></div>
+                        <div class="rating-bar-segment" data-value="4"><span>4</span></div>
+                        <div class="rating-bar-segment" data-value="5"><span>5</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vista de Resumen (inicialmente oculta) -->
+            <div id="summary-view" class="hidden">
+                <h2 id="summary-title">Resumen de tus Respuestas</h2>
+                <div class="summary-bar" id="summary-bar"></div>
+                <button id="restart-btn">Reiniciar Cuestionario</button>
+            </div>
+
+            <div class="navigation-buttons">
+                <button id="prev-btn">Anterior</button>
+                <div class="tooltip-wrapper" id="next-btn-wrapper">
+                    <button id="next-btn">Siguiente</button>
+                    <span class="tooltip-text">Debes seleccionar algún número</span>
+                </div>
+            </div>
+
+            <div class="pagination" id="pagination">
+                <!-- Los números de paginación se generarán con JavaScript -->
+            </div>
+        </div>
+
+        <!-- Lado Derecho: Explicación -->
+        <div class="page right-page">
+            <h2 id="explanation-title">Título de la Explicación</h2>
+            <p id="explanation-text">
+                Aquí aparecerá una explicación detallada relacionada con la pregunta actual.
+            </p>
+        </div>
+        <div id="summary-footer-text" class="hidden">
+                Porque el verdadero cambio COMIENZA DESDE ADENTRO
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- 1. DATOS DE LAS PREGUNTAS ---
+        const questions = [
+            {
+                id: 1,
+                questionText: "¿Has pensado alguna vez que los hombres son naturalmente superiores a las mujeres?",
+                explanationTitle: "Actitudes de superioridad masculina",
+                explanationText: "1. ​¿T​e parece que los hombres son más aptos para liderar en el trabajo o la política que las mujeres?<br>2. ¿Crees que los hombres deben ser siempre los proveedores principales de una familia, mientras que las mujeres deben encargarse del hogar?<br>3. ¿Sientes que los hombres tienen el derecho de tomar decisiones importantes en la vida de una mujer (como su carrera o su vid​a socia​l)?<br>4. ¿Plensas que una mujer n​o debería desafiar a un hombre en una conversación o en una situación de poder?<br>5. ¿Te incomoda que una mujer tenga más éxito a reconocimiento en un área tradicionalmente dominada por hombres?",
+                answer: null
+            },
+            {
+                id: 2,
+                questionText: "¿Has ignorado o minimizado las experiencias y emociones de las mujeres?",
+                explanationTitle: "Falta de empatía o comprensión hacia las mujeres",
+                explanationText: "1. ¿Te ha pasado alguna vez que no prestamos atención a lo que una mujer está diciendo, porque no crees que sea tan importante?<br>2. ¿Tiendes a minimizar los problemas o preocupaciones de las mujeres en tu vida, como si no fueran tan serias o urgentes como los de los hombres?<br>3. ¿Cuándo una mujer expresa molestia o tristeza, sueles pensar que está exagerando o actuando de forma irracional?4. ¿En una discusión, has interrumpido a una mujer para 'corregir' su opinión, sin darle espacio para que termine de expresar sus pensamientos?<br>5. ¿Crees que las mujeres deben ser más 'razonables' o 'controladas' en sus reacciones emocionales, mientras que se toleran más las explosiones emocionales de los hombres?",
+                answer: null
+            },
+            {
+                id: 3,
+                questionText: "​¿Has utilizado alguna vez términos o frases que refuercen los estereotipos de género?",
+                explanationTitle: "​Uso de lenguaje sexista",
+                explanationText: "1. ¿Has utilizado alguna vez términos despectivos para referirse a las mujeres, como ​'histérica​' o ​'deberías estar en la cocina​'?<br>2. ¿Tienes comentarios sobre la apariencia física de las mujeres que las reducen a objetos o algo superficial?<br>3. ¿Te has sentido cómodo haciendo bromas o chistes sexistas sobre las mujeres en tu círculo social?<br>4. ¿Consideras que hay frases que, aunque no sean ​'malas​', pueden hacer sentir a las mujeres menospreciadas, como ​'las chicas no saben de fútbol​' o ​'tú eres muy sensible para eso​'?<br>5. ¿Alguna vez has ridiculizado a una mujer por no cumplir con los estándares tradicionales de belleza o feminidad en tu conversación diaria?",
+                answer: null
+            },
+            {
+                id: 4,
+                questionText: "¿Has intentado controlar las decisiones o el comportamiento de una mujer basándote en su rol de género?",
+                explanationTitle: "Control y objetificación de las mujeres",
+                explanationText: "1. ¿Alguna vez has tomado decisiones importantes por una mujer sin preguntarle su opinión, pensando que sabías que era lo mejor para ella?<br>2. ¿Te has sentido con derecho a opinar sobre cómo una mujer debe vestir, lo que debe hacer o cómo debe comportarse, dependiendo de su entorno o la situación?<br>3. ¿Has intentado influir en las decisiones profesionales de una mujer, como su elección de carrera, pensando que debería elegir algo ​'más adecuado​' para una mujer?<br>4. ¿Piensas que las mujeres deben comportarse de una manera más ​'tradicional​' (por ejemplo, ser más sumis​as o reservadas) para que no se les critique?<br>5. ¿Te parece que una mujer que toma decisiones independientes sobre su vida o su cuerpo está actuando de forma ​'incorrecta​' o desafiante hacia las normas?",
+                answer: null
+            },
+            {
+                id: 5,
+                questionText: "¿Has sentido celos o posesividad hacia las mujeres en tu vida?",
+                explanationTitle: "Celos y posesividad",
+                explanationText: "​1. ¿Te molesta que una mujer pase tiempo con amigos o familiares sin tu presencia, sintiendo que no es apropiado?​<br>2. ¿Sientes celos cuando una mujer tiene éxito o es admirada por otras personas, especialmente si no está relacionada contigo?​<br>3. ¿Controlas las actividades de una mujer, como qué amigos pueden ver o qué lugares pueden visitar, sin darle espacio para su autonomía?<br>4. ¿Tiendes a ser desconfiado hacia las mujeres que muestran Independencia a que pasan tiempo lejos de ti?​<br>5. ¿Crees que es natural que un hombre se sienta celoso ​o posesivo si una mujer tiene una vida social activa o si le presta​ atención a otros hombres?",
+                answer: null
+            }
+        ];
+
+        // --- 2. VARIABLES DE ESTADO ---
+        let currentQuestionIndex = 0;
+
+        // --- 3. REFERENCIAS A ELEMENTOS DEL DOM ---
+        const questionTitleEl = document.getElementById('question-title');
+        const questionTextEl = document.getElementById('question-text');
+        const explanationTitleEl = document.getElementById('explanation-title');
+        const explanationTextEl = document.getElementById('explanation-text');
+        const ratingBar = document.getElementById('rating-bar');
+        const ratingBarFill = ratingBar.querySelector('.rating-bar-fill');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const paginationContainer = document.getElementById('pagination');
+        const questionView = document.getElementById('question-view');
+        const summaryView = document.getElementById('summary-view');
+        const restartBtn = document.getElementById('restart-btn');
+        const nextBtnWrapper = document.getElementById('next-btn-wrapper');
+        const summaryFooterTextEl = document.getElementById('summary-footer-text');
+
+        // --- 4. FUNCIÓN PRINCIPAL PARA RENDERIZAR LA PREGUNTA ---
+        function renderQuestion(index) {
+            if (index < 0 || index >= questions.length) return;
+
+            currentQuestionIndex = index;
+            const question = questions[index];
+
+            questionTitleEl.textContent = `Pregunta #${question.id}`;
+            questionTextEl.textContent = question.questionText;
+            explanationTitleEl.textContent = question.explanationTitle;
+            explanationTextEl.innerHTML = question.explanationText;
+
+            // Actualizar la barra de calificación con la respuesta guardada
+            updateRatingBar(question.answer);
+
+            prevBtn.disabled = index === 0;
+
+            // El botón "Siguiente" o "Generar Resumen" estará deshabilitado si no hay respuesta
+            if (index === questions.length - 1) {
+                nextBtn.textContent = 'Generar Resumen';
+            } else {
+                nextBtn.textContent = 'Siguiente';
+            }
+            nextBtn.disabled = question.answer === null;
+
+            updatePagination();
+        }
+
+        // --- 5. FUNCIONES AUXILIARES ---
+
+        function createPagination() {
+            questions.forEach((_, index) => {
+                const pageNumber = document.createElement('div');
+                pageNumber.classList.add('page-number');
+                pageNumber.textContent = index + 1;
+                pageNumber.dataset.index = index;
+                paginationContainer.appendChild(pageNumber);
+            });
+        }
+
+        function updatePagination() {
+            const pageNumbers = paginationContainer.querySelectorAll('.page-number');
+            let enabled = true; // La primera pregunta siempre está habilitada
+            pageNumbers.forEach(pn => {
+                const index = parseInt(pn.dataset.index);
+                pn.classList.toggle('current', index === currentQuestionIndex);
+
+                // Un número de página está habilitado si la pregunta anterior fue respondida
+                const isEnabled = (index === 0) || questions[index - 1].answer !== null;
+                pn.classList.toggle('disabled', !isEnabled);
+
+
+            });
+        }
+        
+        // Función para actualizar la barra de calificación (con animación)
+        function updateRatingBar(value) {
+            const segments = ratingBar.querySelectorAll('.rating-bar-segment');
+            
+            // Limpia clases de color anteriores
+            ratingBarFill.classList.remove('color-1', 'color-2', 'color-3', 'color-4', 'color-5');
+
+            if (value === null) {
+                ratingBarFill.style.width = '0%';
+                ratingBar.classList.remove('selected');
+            } else {
+                // Añade la clase de color correspondiente
+                ratingBarFill.classList.add(`color-${value}`);
+                // La animación se activa al cambiar el ancho
+                ratingBarFill.style.width = `${value * 20}%`;
+                ratingBar.classList.add('selected');
+            }
+
+            // Actualiza el estilo de los números
+            segments.forEach(segment => {
+                const segmentValue = parseInt(segment.dataset.value);
+                segment.classList.toggle('active', value !== null && segmentValue <= value);
+            });
+        }
+
+        // Función para mostrar la vista de resumen
+        function showSummary() {
+            // Ocultar vista de preguntas y navegación
+            questionView.classList.add('hidden');
+            paginationContainer.classList.add('hidden');
+            document.querySelector('.navigation-buttons').classList.add('hidden');
+
+            // Mostrar vista de resumen
+            summaryView.classList.remove('hidden');
+
+            // Actualizar página derecha
+            explanationTitleEl.textContent = "";
+            explanationTextEl.innerHTML = "Gracias por regalarte este tiempo para tomar conciencia sobre tu propio pensamiento y conductas.<br>Te invitamos a reflexionar con base a tus respuestas y seguir documentándote sobre este tema tan importante para la sana convivencia en el hogar, trabajo y tu comunidad.";
+
+            // Generar la barra de resumen
+            const summaryBar = document.getElementById('summary-bar');
+            summaryFooterTextEl.classList.remove('hidden'); // Mostrar el texto del pie de página
+            summaryBar.innerHTML = ''; // Limpiar contenido anterior
+
+            questions.forEach(q => {
+                const segment = document.createElement('div');
+                segment.classList.add('summary-segment');
+                if (q.answer !== null) {
+                    // Usamos las mismas clases de color que la barra de llenado
+                    segment.classList.add(`color-${q.answer}`);
+                    segment.textContent = q.answer;
+                } else {
+                    segment.textContent = '-'; // Si no hay respuesta
+                    segment.style.backgroundColor = '#e9ecef';
+                    segment.style.color = '#000';
+                }
+                summaryBar.appendChild(segment);
+            });
+        }
+
+        // Función para reiniciar el cuestionario
+        function restartQuiz() {
+            // Limpiar respuestas
+            questions.forEach(q => q.answer = null);
+
+            // Ocultar vista de resumen
+            summaryView.classList.add('hidden');
+
+            // Mostrar vista de preguntas y navegación
+            questionView.classList.remove('hidden');
+            paginationContainer.classList.remove('hidden');
+            document.querySelector('.navigation-buttons').classList.remove('hidden');
+            summaryFooterTextEl.classList.add('hidden'); // Ocultar el texto del pie de página
+
+            // Volver a la primera pregunta
+            renderQuestion(0);
+        }
+
+        // --- 6. MANEJADORES DE EVENTOS ---
+
+        nextBtn.addEventListener('click', () => {
+            const currentQuestion = questions[currentQuestionIndex];
+            // Si no hay respuesta, muestra un mensaje y no avances.
+            if (currentQuestion.answer === null) {
+                const originalTitle = explanationTitleEl.textContent;
+                const originalText = explanationTextEl.innerHTML;
+
+                explanationTitleEl.textContent = "¡Un momento!";
+                explanationTextEl.innerHTML = "Por favor, califica la pregunta actual del 1 al 5 en el panel izquierdo para poder continuar.<br><br>Tu respuesta es importante para completar el ejercicio de reflexión.";
+
+                // Restaura el contenido original después de unos segundos
+                setTimeout(() => {
+                    explanationTitleEl.textContent = originalTitle;
+                    explanationTextEl.innerHTML = originalText;
+                }, 4000); // El mensaje se mostrará por 4 segundos
+
+                return; // Detiene la ejecución para no pasar a la siguiente pregunta
+            }
+
+            // Si hay respuesta, procede normalmente
+            if (currentQuestionIndex === questions.length - 1) { // Si es la última pregunta
+                showSummary();
+            } else {
+                renderQuestion(currentQuestionIndex + 1);
+            }
+        });
+        prevBtn.addEventListener('click', () => renderQuestion(currentQuestionIndex - 1));
+
+        paginationContainer.addEventListener('click', (e) => {
+            // Solo permite la navegación si el número de página no está deshabilitado
+            if (e.target.classList.contains('page-number') && !e.target.classList.contains('disabled')) {
+                const index = parseInt(e.target.dataset.index);
+                renderQuestion(index);
+            }
+        });
+        
+        // Guardar respuesta al hacer clic en la barra de calificación
+        ratingBar.addEventListener('click', (e) => {
+            const segment = e.target.closest('.rating-bar-segment');
+            if (segment) {
+                const value = parseInt(segment.dataset.value);
+                questions[currentQuestionIndex].answer = value;
+                updateRatingBar(value); // Llama a la función que activa la animación
+                nextBtn.disabled = false; // Habilita el botón de siguiente
+                console.log(`Respuesta para la pregunta ${currentQuestionIndex + 1}: ${value}`);
+            }
+        });
+
+        // --- NUEVO: MANEJADORES PARA EL TOOLTIP DEL BOTÓN "SIGUIENTE" ---
+        function handleTooltip(show) {
+            // Solo muestra el tooltip si el botón está realmente deshabilitado
+            if (show && nextBtn.disabled) {
+                nextBtnWrapper.classList.add('show-tooltip');
+            } else {
+                nextBtnWrapper.classList.remove('show-tooltip');
+            }
+        }
+
+        // Mostrar en hover (escritorio) o al hacer clic (móvil)
+        nextBtnWrapper.addEventListener('mouseenter', () => handleTooltip(true));
+        nextBtnWrapper.addEventListener('mouseleave', () => handleTooltip(false));
+        nextBtnWrapper.addEventListener('click', () => handleTooltip(true));
+
+        restartBtn.addEventListener('click', restartQuiz);
+
+        // --- 7. INICIALIZACIÓN ---
+        createPagination();
+        renderQuestion(0); // Muestra la primera pregunta al cargar
+    });
+    </script>
+</body>
+</html>
